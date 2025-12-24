@@ -1,0 +1,7 @@
+{
+  "name": "HappyGreeting Billing",
+  "description": "Local billing software with invoice generation, sales reporting, and AI voice assistant.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

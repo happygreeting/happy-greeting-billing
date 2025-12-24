@@ -1,0 +1,21 @@
+{
+  "short_name": "HG Billing",
+  "name": "Happy Greeting Billing Software",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2534/2534204.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2534/2534204.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#06b6d4",
+  "background_color": "#ffffff",
+  "orientation": "portrait"
+}
