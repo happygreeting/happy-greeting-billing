@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, LayoutDashboard, FileText, Printer, Save, Trash2, ArrowLeft, Menu, Package, CreditCard, X, RotateCcw, Settings as SettingsIcon, Eye } from 'lucide-react';
+import { Plus, LayoutDashboard, FileText, Printer, Save, Trash2, ArrowLeft, Menu, Package, CreditCard, X, RotateCcw, Settings as SettingsIcon, Eye, Download } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Invoice, ViewState, LineItem, Product, AppSettings } from './types';
 import { InvoicePreview } from './components/InvoicePreview';
@@ -165,8 +165,8 @@ function App() {
       // Set as current to show in preview, then trigger print
       setCurrentInvoice(inv);
       setView(ViewState.INVOICE_EDIT); 
-      // Using timeout to ensure render before print dialog
-      setTimeout(() => window.print(), 100);
+      // Using longer timeout to ensure render before print dialog on mobile
+      setTimeout(() => window.print(), 500);
   };
 
   const handleDelete = (id: string) => {
@@ -383,9 +383,10 @@ function App() {
            {view === ViewState.SETTINGS && <Settings settings={settings} onSave={setSettings} />}
 
            {view === ViewState.INVOICE_LIST && (
-               <div className="p-8">
-                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                       <table className="w-full text-left text-sm text-gray-600">
+               <div className="p-4 md:p-8">
+                   {/* ADDED: overflow-x-auto to wrapper and min-w on table to allow scrolling on mobile */}
+                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+                       <table className="w-full text-left text-sm text-gray-600 min-w-[700px]">
                            <thead className="bg-gray-50 text-gray-900 font-semibold border-b border-gray-200">
                                <tr>
                                    <th className="px-6 py-4">#</th>
@@ -423,8 +424,8 @@ function App() {
                                                    <button onClick={() => handleEdit(inv)} className="text-gray-500 hover:text-gray-700" title="View / Edit">
                                                        <Eye size={18} />
                                                    </button>
-                                                   <button onClick={() => handlePrintList(inv)} className="text-gray-500 hover:text-gray-700" title="Print/Download">
-                                                       <Printer size={18} />
+                                                   <button onClick={() => handlePrintList(inv)} className="text-gray-500 hover:text-gray-700" title="Print / Download PDF">
+                                                       <Download size={18} />
                                                    </button>
                                                    <button onClick={() => handleDelete(inv.id)} className="text-red-400 hover:text-red-600"><Trash2 size={18} /></button>
                                                </td>
@@ -451,8 +452,9 @@ function App() {
                                 <button onClick={handleClearCart} className="p-2 text-red-400 hover:bg-red-50 rounded" title="Clear Cart">
                                     <RotateCcw size={20} />
                                 </button>
-                                <button onClick={() => window.print()} className="p-2 text-gray-600 hover:bg-gray-100 rounded" title="Print / Download PDF">
-                                    <Printer size={20} />
+                                <button onClick={() => window.print()} className="px-3 py-2 text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded flex items-center gap-2" title="Print / Download PDF">
+                                    <Printer size={18} />
+                                    <span className="text-sm font-medium">Print / PDF</span>
                                 </button>
                             </div>
                         </div>
