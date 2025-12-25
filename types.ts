@@ -48,6 +48,16 @@ export interface AppSettings {
   googleReviewUrl?: string;
 }
 
+export type UserRole = 'ADMIN' | 'EMPLOYEE';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  password: string; // In a real app, this should be hashed. For local-only, plain text is stored.
+  role: UserRole;
+}
+
 export enum ViewState {
   DASHBOARD = 'DASHBOARD',
   INVOICE_LIST = 'INVOICE_LIST',

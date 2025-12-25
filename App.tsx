@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, LayoutDashboard, FileText, Printer, Save, Trash2, ArrowLeft, Menu, Package, CreditCard, X, RotateCcw, Settings as SettingsIcon, Eye, Download, Share2 } from 'lucide-react';
+import { Plus, LayoutDashboard, FileText, Printer, Save, Trash2, ArrowLeft, Menu, Package, CreditCard, X, RotateCcw, Settings as SettingsIcon, Eye, Download, Share2, LogOut } from 'lucide-react';
 import QRCode from 'react-qr-code';
-import { Invoice, ViewState, LineItem, Product, AppSettings } from './types';
+import { Invoice, ViewState, LineItem, Product, AppSettings, User } from './types';
 import { InvoicePreview } from './components/InvoicePreview';
 import { Dashboard } from './components/Dashboard';
 import { LiveAssistant } from './components/LiveAssistant';
 import { Inventory } from './components/Inventory';
 import { HGLogo } from './components/HGLogo';
 import { Settings } from './components/Settings';
+import { Login } from './components/Login';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
 const STORAGE_KEY = 'happy_greeting_invoices';
 const PRODUCTS_KEY = 'happy_greeting_products';
 const SETTINGS_KEY = 'happy_greeting_settings';
+const AUTH_KEY = 'happy_greeting_auth_user_data'; // Stores the full user object
+const USERS_KEY = 'happy_greeting_users';
 
 const DEFAULT_SETTINGS: AppSettings = {
     companyName: 'Happy Greeting',
@@ -27,6 +30,14 @@ const DEFAULT_SETTINGS: AppSettings = {
     footerMessage: 'Thank you for shopping with Happy Greeting!',
     subFooterMessage: 'Please visit us again.',
     googleReviewUrl: 'https://g.page/r/CWwRZhiMQy2xEBM/review'
+};
+
+const DEFAULT_ADMIN: User = {
+    id: 'admin-1',
+    name: 'Administrator',
+    email: 'happygreetingtoyou@gmail.com',
+    password: 'admin',
+    role: 'ADMIN'
 };
 
 // CLEAN Defaults for new invoice
@@ -63,6 +74,9 @@ const toInputDate = (dateStr: string) => {
 };
 
 function App() {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -71,6 +85,56 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+
+  // --- Initialization & Auth ---
+  useEffect(() => {
+    // 1. Load Settings
+    const storedSettings = localStorage.getItem(SETTINGS_KEY);
+    if (storedSettings) setSettings(JSON.parse(storedSettings));
+
+    // 2. Load Users
+    const storedUsers = localStorage.getItem(USERS_KEY);
+    if (storedUsers) {
+        setUsers(JSON.parse(storedUsers));
+    } else {
+        // Initialize default admin if no users exist
+        const initialUsers = [DEFAULT_ADMIN];
+        setUsers(initialUsers);
+        localStorage.setItem(USERS_KEY, JSON.stringify(initialUsers));
+    }
+
+    // 3. Check Persistent Login
+    const savedUserJSON = localStorage.getItem(AUTH_KEY);
+    if (savedUserJSON) {
+        try {
+            const user = JSON.parse(savedUserJSON);
+            setCurrentUser(user);
+        } catch (e) {
+            localStorage.removeItem(AUTH_KEY);
+        }
+    }
+  }, []);
+
+  // Update Users Storage whenever users change
+  useEffect(() => {
+    if (users.length > 0) {
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    }
+  }, [users]);
+
+  // Update Favicon when settings change
+  useEffect(() => {
+    if (settings.logoUrl) {
+        let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+        if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.getElementsByTagName('head')[0].appendChild(link);
+        }
+        link.href = settings.logoUrl;
+    }
+    document.title = `${settings.companyName} Billing`;
+  }, [settings]);
 
   // Load Data
   useEffect(() => {
@@ -96,26 +160,7 @@ function App() {
             { id: '12', name: 'Ramzan Special – Eid Mubarak', type: 'READYMADE', price: 250 },
         ]);
     }
-
-    const storedSettings = localStorage.getItem(SETTINGS_KEY);
-    if (storedSettings) {
-        setSettings(JSON.parse(storedSettings));
-    }
   }, []);
-
-  // Update Favicon when settings change
-  useEffect(() => {
-    if (settings.logoUrl) {
-        let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-        if (!link) {
-            link = document.createElement('link');
-            link.rel = 'icon';
-            document.getElementsByTagName('head')[0].appendChild(link);
-        }
-        link.href = settings.logoUrl;
-    }
-    document.title = `${settings.companyName} Billing`;
-  }, [settings]);
 
   // Save Data
   useEffect(() => {
@@ -129,6 +174,42 @@ function App() {
   useEffect(() => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }, [settings]);
+
+  // --- Auth Handlers ---
+  const handleLogin = (user: User) => {
+      setCurrentUser(user);
+      localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+  };
+
+  const handleLogout = () => {
+      if(confirm('Are you sure you want to log out?')) {
+          localStorage.removeItem(AUTH_KEY);
+          setCurrentUser(null);
+      }
+  };
+
+  // --- User Management Handlers ---
+  const handleAddUser = (newUser: User) => {
+      setUsers(prev => [...prev, newUser]);
+  };
+
+  const handleDeleteUser = (userId: string) => {
+      if (userId === currentUser?.id) {
+          alert("You cannot delete your own account.");
+          return;
+      }
+      if (confirm('Delete this user? This action cannot be undone.')) {
+          setUsers(prev => prev.filter(u => u.id !== userId));
+      }
+  };
+
+  const handleUpdateUser = (updatedUser: User) => {
+      setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+      if (currentUser?.id === updatedUser.id) {
+          setCurrentUser(updatedUser);
+          localStorage.setItem(AUTH_KEY, JSON.stringify(updatedUser));
+      }
+  };
 
 
   // --- Invoice Logic ---
@@ -330,6 +411,10 @@ function App() {
       setShowPaymentModal(false);
   };
 
+  if (!currentUser) {
+      return <Login users={users} onLogin={handleLogin} />;
+  }
+
   return (
     <div className="flex h-screen bg-gray-50 font-sans">
       
@@ -362,17 +447,27 @@ function App() {
         </nav>
         
         <div className="p-4 border-t border-gray-800 bg-[#020617]">
-             <div className="flex items-center gap-3 px-2">
+             <div className="flex items-center gap-3 px-2 mb-3">
                  <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/30">
-                    {settings.logoUrl ? <img src={settings.logoUrl} className="w-full h-full rounded-full object-cover" /> : 'A'}
+                    {settings.logoUrl ? <img src={settings.logoUrl} className="w-full h-full rounded-full object-cover" /> : currentUser.name.charAt(0)}
                  </div>
                  {isSidebarOpen && (
                      <div className="overflow-hidden">
-                         <p className="text-sm font-medium text-white truncate">Admin</p>
-                         <p className="text-xs text-gray-500 truncate">{settings.companyName}</p>
+                         <p className="text-sm font-medium text-white truncate">{currentUser.name}</p>
+                         <p className="text-xs text-gray-500 truncate">{currentUser.role}</p>
                      </div>
                  )}
              </div>
+             
+             {isSidebarOpen ? (
+                <button onClick={handleLogout} className="w-full flex items-center gap-2 text-red-400 hover:text-red-300 text-sm font-medium px-2 py-1 rounded hover:bg-white/5 transition-colors">
+                    <LogOut size={16} /> Sign Out
+                </button>
+             ) : (
+                <button onClick={handleLogout} className="w-full flex justify-center text-red-400 hover:text-red-300 py-2">
+                    <LogOut size={18} />
+                </button>
+             )}
         </div>
       </aside>
 
@@ -446,7 +541,17 @@ function App() {
 
            {view === ViewState.INVENTORY && <Inventory products={products} onAddProduct={addProduct} onUpdateProduct={updateProduct} onDeleteProduct={deleteProduct} />}
            
-           {view === ViewState.SETTINGS && <Settings settings={settings} onSave={setSettings} />}
+           {view === ViewState.SETTINGS && (
+               <Settings 
+                   settings={settings} 
+                   onSave={setSettings} 
+                   currentUser={currentUser}
+                   users={users}
+                   onAddUser={handleAddUser}
+                   onDeleteUser={handleDeleteUser}
+                   onUpdateUser={handleUpdateUser}
+               />
+           )}
 
            {view === ViewState.INVOICE_LIST && (
                <div className="p-4 md:p-8">
