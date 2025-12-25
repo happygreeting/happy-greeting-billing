@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, LayoutDashboard, FileText, Printer, Save, Trash2, ArrowLeft, Menu, Package, CreditCard, X, RotateCcw, Settings as SettingsIcon, Eye, Download } from 'lucide-react';
+import { Plus, LayoutDashboard, FileText, Printer, Save, Trash2, ArrowLeft, Menu, Package, CreditCard, X, RotateCcw, Settings as SettingsIcon, Eye, Download, Share2 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Invoice, ViewState, LineItem, Product, AppSettings } from './types';
 import { InvoicePreview } from './components/InvoicePreview';
@@ -8,6 +8,8 @@ import { LiveAssistant } from './components/LiveAssistant';
 import { Inventory } from './components/Inventory';
 import { HGLogo } from './components/HGLogo';
 import { Settings } from './components/Settings';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 const STORAGE_KEY = 'happy_greeting_invoices';
 const PRODUCTS_KEY = 'happy_greeting_products';
@@ -68,6 +70,7 @@ function App() {
   const [currentInvoice, setCurrentInvoice] = useState<Invoice>(NEW_INVOICE_TEMPLATE);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   // Load Data
   useEffect(() => {
@@ -211,6 +214,69 @@ function App() {
           }));
       }
   };
+
+  // --- Share Logic ---
+  const handleShare = async () => {
+    const element = document.getElementById('invoice-preview-container');
+    if (!element) return;
+    
+    setIsSharing(true);
+
+    try {
+        // 1. Capture the Invoice Preview as a canvas
+        const canvas = await html2canvas(element, {
+            scale: 2, // Improve quality
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff'
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        
+        // 2. Generate PDF
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        // Calculate height to maintain aspect ratio
+        const imgProps = pdf.getImageProperties(imgData);
+        const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight);
+        
+        const fileName = `Invoice_${currentInvoice.invoiceNumber || 'New'}.pdf`;
+
+        // 3. Share if supported
+        if (navigator.share) {
+             const blob = pdf.output('blob');
+             const file = new File([blob], fileName, { type: 'application/pdf' });
+             
+             if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                 await navigator.share({
+                     title: `Invoice #${currentInvoice.invoiceNumber}`,
+                     text: `Here is the invoice for ${currentInvoice.customerName} from ${settings.companyName}.`,
+                     files: [file]
+                 });
+                 setIsSharing(false);
+                 return;
+             }
+        }
+        
+        // Fallback: Download the PDF
+        pdf.save(fileName);
+        alert("Downloaded PDF. You can now share this file manually.");
+
+    } catch (error) {
+        console.error("Share failed:", error);
+        alert("Could not share directly. Please try 'Print / PDF' button.");
+    } finally {
+        setIsSharing(false);
+    }
+  };
+
 
   // --- Line Item Logic ---
   const addItem = () => {
@@ -452,9 +518,18 @@ function App() {
                                 <button onClick={handleClearCart} className="p-2 text-red-400 hover:bg-red-50 rounded" title="Clear Cart">
                                     <RotateCcw size={20} />
                                 </button>
+                                <button 
+                                    onClick={handleShare} 
+                                    className={`px-3 py-2 ${isSharing ? 'bg-brand-blue text-white' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'} border border-gray-200 rounded flex items-center gap-2 transition-colors`} 
+                                    title="Share via WhatsApp / Mail"
+                                    disabled={isSharing}
+                                >
+                                    <Share2 size={18} className={isSharing ? 'animate-pulse' : ''} />
+                                    <span className="text-sm font-medium">{isSharing ? '...' : 'Share'}</span>
+                                </button>
                                 <button onClick={() => window.print()} className="px-3 py-2 text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded flex items-center gap-2" title="Print / Download PDF">
                                     <Printer size={18} />
-                                    <span className="text-sm font-medium">Print / PDF</span>
+                                    <span className="text-sm font-medium">Print</span>
                                 </button>
                             </div>
                         </div>
@@ -630,7 +705,7 @@ function App() {
 
                    {/* Preview */}
                    <div className="flex-1 bg-gray-100 p-8 overflow-y-auto flex justify-center items-start print:p-0 print:bg-white print:w-full print:block">
-                        <div className="shadow-2xl print:shadow-none w-[210mm] print:w-full">
+                        <div id="invoice-preview-container" className="shadow-2xl print:shadow-none w-[210mm] print:w-full">
                             <InvoicePreview invoice={currentInvoice} settings={settings} />
                         </div>
                    </div>
