@@ -34,13 +34,15 @@ export const subscribeToInvoices = (onUpdate: (invoices: Invoice[]) => void) => 
   });
 };
 
-export const createInvoice = async (invoice: Omit<Invoice, "id">, userId: string) => {
+export const createInvoice = async (
+  invoice: Omit<Invoice, "id">
+) => {
   await addDoc(collection(db, COLLECTION_NAME), {
     ...invoice,
-    userId,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now()
   });
+};
 };
 
 export const updateInvoice = async (id: string, invoice: Partial<Invoice>) => {
