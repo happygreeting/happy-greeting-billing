@@ -13,8 +13,6 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, addDoc } from "firebase/firestore";
-import { db } from "./firebase";
 import { subscribeToInvoices, createInvoice, updateInvoice, deleteInvoice } from './services/invoices';
 import { logoutUser, getUserProfile } from './services/auth';
 
@@ -68,21 +66,6 @@ const toInputDate = (dateStr: string) => {
 };
 
 function App() {
-    const testSaveToFirebase = async () => {
-  try {
-    await addDoc(collection(db, "greetings"), {
-      name: "Website Test",
-      message: "Saved from App.tsx",
-      amount: 200,
-      createdAt: new Date(),
-    });
-
-    alert("Firebase save successful ✅");
-  } catch (e) {
-    console.error(e);
-    alert("Firebase error ❌");
-  }
-};
   // Auth State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -327,35 +310,34 @@ function App() {
     return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">Loading...</div>;
   }
 
- if (!currentUser) {
-  return <Login />;
-}
+  if (!currentUser) {
+      return <Login />;
+  }
 
-return (
-  <>
-    <button
-      onClick={testSaveToFirebase}
-      style={{ padding: "10px", margin: "10px" }}
-    >
-      Test Firebase Save
-    </button>
-
+  return (
     <div className="flex h-screen bg-gray-50 font-sans">
-      {/* 🔽 PUT ALL YOUR EXISTING APP UI HERE 🔽 */}
-
+      
       {/* Sidebar */}
-      <aside className="bg-[#0f172a] text-white">
-        ...
-      </aside>
+      <aside className={`bg-[#0f172a] text-white transition-all duration-300 print:hidden flex flex-col ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+        <div className="p-6 flex items-center justify-between border-b border-gray-800">
+           <div className={`flex items-center gap-2 ${!isSidebarOpen && 'justify-center w-full'}`}>
+               <div className="w-8 h-8 flex items-center justify-center">
+                    <HGLogo size="sm" showText={false} customLogo={settings.logoUrl} />
+               </div>
+               {isSidebarOpen && <span className="font-bold text-lg tracking-tight">Billing</span>}
+           </div>
+           {isSidebarOpen && (
+                <button onClick={() => setIsSidebarOpen(false)} className="text-gray-500 hover:text-white">
+                    <ArrowLeft size={16} />
+                </button>
+           )}
+           {!isSidebarOpen && (
+               <button onClick={() => setIsSidebarOpen(true)} className="absolute top-6 right-[-12px] bg-brand-cyan rounded-full p-1 text-white shadow-lg">
+                   <Menu size={12} />
+               </button>
+           )}
+        </div>
 
-      {/* Main Content */}
-      <main className="flex-1">
-        ...
-      </main>
-
-    </div>
-  </>
-);
         <nav className="flex-1 p-4 space-y-2 mt-4">
            <NavButton active={view === ViewState.DASHBOARD} onClick={() => setView(ViewState.DASHBOARD)} icon={<LayoutDashboard size={20} />} label="Dashboard" isOpen={isSidebarOpen} />
            <NavButton active={view === ViewState.INVOICE_LIST} onClick={() => setView(ViewState.INVOICE_LIST)} icon={<FileText size={20} />} label="Invoices" isOpen={isSidebarOpen} />

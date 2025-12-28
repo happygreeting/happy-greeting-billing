@@ -1,59 +1,56 @@
-import {
-  collection,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  orderBy,
-  serverTimestamp,
-} from "firebase/firestore";
 import { db } from "../firebase";
+import { 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  query, 
+  onSnapshot, 
+  orderBy,
+  Timestamp,
+  where
+} from "firebase/firestore";
 import { Invoice } from "../types";
 
-const invoicesRef = collection(db, "invoices");
+const COLLECTION_NAME = "invoices";
 
-/**
- * LIVE SUBSCRIBE (REAL SYNC)
- */
-export const subscribeToInvoices = (
-  callback: (invoices: Invoice[]) => void
-) => {
-  const q = query(invoicesRef, orderBy("createdAt", "desc"));
-
-  return onSnapshot(q, (snapshot) => {
-    const invoices: Invoice[] = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Invoice),
-    }));
-
-    callback(invoices);
+// Real-time listener for invoices
+export const subscribeToInvoices = (onUpdate: (invoices: Invoice[]) => void) => {
+  const q = query(collection(db, COLLECTION_NAME), orderBy("date", "desc"));
+  
+  return onSnapshot(q, (querySnapshot) => {
+    const invoices: Invoice[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      // Convert Firestore Timestamp to string for UI
+      invoices.push({
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt
+      } as Invoice);
+    });
+    onUpdate(invoices);
   });
 };
 
-/**
- * CREATE INVOICE
- */
-export const createInvoice = async (invoice: Invoice) => {
-  await addDoc(invoicesRef, {
+export const createInvoice = async (invoice: Omit<Invoice, "id">, userId: string) => {
+  await addDoc(collection(db, COLLECTION_NAME), {
     ...invoice,
-    createdAt: serverTimestamp(),
+    userId,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now()
   });
 };
 
-/**
- * UPDATE INVOICE
- */
 export const updateInvoice = async (id: string, invoice: Partial<Invoice>) => {
-  const ref = doc(db, "invoices", id);
-  await updateDoc(ref, invoice);
+  const docRef = doc(db, COLLECTION_NAME, id);
+  await updateDoc(docRef, {
+    ...invoice,
+    updatedAt: Timestamp.now()
+  });
 };
 
-/**
- * DELETE INVOICE
- */
 export const deleteInvoice = async (id: string) => {
-  const ref = doc(db, "invoices", id);
-  await deleteDoc(ref);
+  await deleteDoc(doc(db, COLLECTION_NAME, id));
 };
